@@ -10,13 +10,13 @@ import (
 
 //export FLBPluginRegister
 func FLBPluginRegister(def unsafe.Pointer) int {
-	return output.FLBPluginRegister(def, "multiinstance", "Testing multiple instances.")
+	return output.FLBPluginRegister(def, "sqs", "AWS SQS Output plugin")
 }
 
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
-	id := output.FLBPluginConfigKey(plugin, "id")
-	log.Printf("[multiinstance] id = %q", id)
+	id := output.FLBPluginConfigKey(plugin, "QueueUrl")
+	log.Printf("[out-sqs] id = %q", id)
 	// Set the context to point to any Go variable
 	output.FLBPluginSetContext(plugin, unsafe.Pointer(&id))
 	return output.FLB_OK
