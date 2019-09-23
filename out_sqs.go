@@ -13,7 +13,7 @@ var mySQS *sqs.SQS
 
 // FLBPluginRegister is called by fluentbit
 func FLBPluginRegister(def unsafe.Pointer) int {
-	return output.FLBPluginRegister(def, "sqs", "SQS")
+	return output.FLBPluginRegister(def, "sqs", "Sqs Output plugin")
 }
 
 // FLBPluginInit is called by fluentbit
@@ -28,7 +28,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	}
 
 	// Set the context with the queueURL
-	output.FLBPluginSetContext(plugin, queueURL)
+	// output.FLBPluginSetContext(plugin, queueURL)
 
 	return output.FLB_OK
 }
