@@ -35,6 +35,7 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
+	queueRegion := output.FLBPluginConfigKey(plugin, "QueueRegion")
 	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
 
 	if queueURL == "" {
@@ -42,7 +43,15 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		return output.FLB_ERROR
 	}
 
-	myAWSSession, err := session.NewSession()
+	if queueRegion == "" {
+		writeErrorLog(errors.New("QueueRegion configuration key is mandatory"))
+		return output.FLB_ERROR
+	}
+
+	myAWSSession, err := session.NewSession(&aws.Config{
+		Region: aws.String(queueRegion),
+	})
+
 	if err != nil {
 		writeErrorLog(err)
 		return output.FLB_ERROR
