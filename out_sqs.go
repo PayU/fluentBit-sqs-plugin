@@ -16,9 +16,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 )
 
-// MessageCounter is used for count
-// the current SQS Batch messages
+// MessageCounter is used for count the current SQS Batch messages
 var MessageCounter int = 0
+
+// SqsRecords is the actual aws messages batch
+var SqsRecords []*sqs.SendMessageBatchRequestEntry
 
 type sqsConfig struct {
 	queueURL string
@@ -61,8 +63,6 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 	var ts interface{}
 	var record map[interface{}]interface{}
 	var sqsRecord *sqs.SendMessageBatchRequestEntry
-	var sqsBatch sqs.SendMessageBatchInput
-	var sqsRecords []*sqs.SendMessageBatchRequestEntry
 
 	// Type assert context back into the original type for the Go variable
 	sqsConf, ok := output.FLBPluginGetContext(ctx).(*sqsConfig)
@@ -74,16 +74,17 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
-	sqsBatch = sqs.SendMessageBatchInput{}
 
 	// Iterate Records
 	for {
-		writeInfoLog(fmt.Sprintf("count number is: %d", MessageCounter))
 		// Extract Record
 		ret, ts, record = output.GetRecord(dec)
 		if ret != 0 {
 			break
 		}
+
+		MessageCounter++
+		writeInfoLog(fmt.Sprintf("count number is: %d", MessageCounter))
 
 		// Print record keys and values
 		timestamp := ts.(output.FLBTime)
@@ -99,22 +100,14 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			Id:          aws.String(fmt.Sprintf("Message No: %d", MessageCounter)),
 			MessageBody: aws.String(recordString),
 		}
-		sqsRecords = append(sqsRecords, sqsRecord)
 
-		MessageCounter++
+		SqsRecords = append(SqsRecords, sqsRecord)
 
 		if MessageCounter%10 == 0 {
+			sendBatchToSqs(sqsConf, SqsRecords)
+
+			SqsRecords = nil
 			MessageCounter = 0
-
-			writeInfoLog("going to send message to sqs")
-			sqsBatch = sqs.SendMessageBatchInput{
-				Entries:  sqsRecords,
-				QueueUrl: aws.String(sqsConf.queueURL),
-			}
-			sqsConf.mySQS.SendMessageBatch(&sqsBatch)
-			writeInfoLog("after sending messages to sqs")
-			sqsRecords = nil
-
 		}
 
 	}
@@ -125,6 +118,20 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 //export FLBPluginExit
 func FLBPluginExit() int {
 	return output.FLB_OK
+}
+
+func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchRequestEntry) {
+	writeInfoLog("going to send message to sqs")
+	sqsBatch := sqs.SendMessageBatchInput{
+		Entries:  sqsRecords,
+		QueueUrl: aws.String(sqsConf.queueURL),
+	}
+
+	output, _ := sqsConf.mySQS.SendMessageBatch(&sqsBatch)
+
+	fmt.Println("----- Testing -------")
+	fmt.Println(output.Failed)
+	fmt.Println(output.Successful)
 }
 
 func writeInfoLog(message string) {
