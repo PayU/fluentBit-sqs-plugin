@@ -10,7 +10,7 @@ import (
 
 // FLBPluginRegister will called by fluentBit
 func FLBPluginRegister(def unsafe.Pointer) int {
-	return output.FLBPluginRegister(def, "aws_sqs", "AWS SQS Output plugin")
+	return output.FLBPluginRegister(def, "sqs", "SQS")
 }
 
 // FLBPluginInit will call by fluentBit
@@ -18,7 +18,7 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	// Example to retrieve an optional configuration parameter
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
-	fmt.Printf("[out-sqs] QueueUrl = '%s'\n", queueURL)
+	// fmt.Printf("[out-sqs] QueueUrl = '%s'\n", queueURL)
 
 	// if queueURL == "" {
 	// 	fmt.Printf("[out-sqs] QueueUrl configuration key is mandatory")
