@@ -8,18 +8,26 @@ import (
 	"github.com/fluent/fluent-bit-go/output"
 )
 
-//export FLBPluginRegister
+// FLBPluginRegister will called by fluentBit
 func FLBPluginRegister(def unsafe.Pointer) int {
-	return output.FLBPluginRegister(def, "gstdout", "Stdout GO!")
+	return output.FLBPluginRegister(def, "sqs", "AWS SQS Output plugin")
 }
 
-//export FLBPluginInit
-// (fluentbit will call this)
+// FLBPluginInit will call by fluentBit
 // plugin (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	// Example to retrieve an optional configuration parameter
-	param := output.FLBPluginConfigKey(plugin, "param")
-	fmt.Printf("[flb-go] plugin parameter = '%s'\n", param)
+	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
+	fmt.Printf("[out-sqs] QueueUrl = '%s'\n", queueURL)
+
+	if queueURL == "" {
+		fmt.Printf("[out-sqs] QueueUrl configuration key is mandatory")
+		return output.FLB_ERROR
+	}
+
+	// Set the context with the relevant configuration keys
+	output.FLBPluginSetContext(plugin, queueURL)
+
 	return output.FLB_OK
 }
 
