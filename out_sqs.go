@@ -15,11 +15,10 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 
 // FLBPluginInit is called by fluentBit
 func FLBPluginInit(plugin unsafe.Pointer) int {
-	QueueURL := output.FLBPluginConfigKey(plugin, "QueueURL")
-	// writeLog(fmt.Sprintf("QueueURL: %s", QueueURL))
-
+	id := output.FLBPluginConfigKey(plugin, "QueueURL")
+	log.Printf("[multiinstance] id = %q", id)
 	// Set the context to point to any Go variable
-	output.FLBPluginSetContext(plugin, unsafe.Pointer(&QueueURL))
+	output.FLBPluginSetContext(plugin, unsafe.Pointer(&id))
 	return output.FLB_OK
 }
 
@@ -32,8 +31,8 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 //export FLBPluginFlushCtx
 func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int {
 	// Cast context back into the original type for the Go variable
-	QueueURL := (*string)(ctx)
-	log.Printf("Flush called for id: %s", *QueueURL)
+	id := (*string)(ctx)
+	log.Printf("Flush called for id: %s", *id)
 
 	dec := output.NewDecoder(data, int(length))
 
