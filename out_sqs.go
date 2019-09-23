@@ -29,7 +29,7 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
-	writeInfoLog(fmt.Sprintf("queueURL is: %s", queueURL))
+	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
 
 	if queueURL == "" {
 		writeErrorLog(errors.New("QueueUrl configuration key is mandatory"))
@@ -72,6 +72,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
 	sqsBatch = sqs.SendMessageBatchInput{}
+
 	// Iterate Records
 	count = 0
 	for {
@@ -85,10 +86,17 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		timestamp := ts.(output.FLBTime)
 		recordString := fmt.Sprintf("{\"tag\":\"%s\", \"timestamp\":\"%s\",", C.GoString(tag),
 			timestamp.String())
+
+		writeInfoLog("first")
+		writeInfoLog(recordString)
+
 		for k, v := range record {
 			recordString = recordString + fmt.Sprintf("\"%s\": %v, ", k, v)
 		}
 		recordString = recordString + fmt.Sprintf("}\n")
+
+		writeInfoLog("second")
+		writeInfoLog(recordString)
 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
 			Id:          aws.String(fmt.Sprintf("Message No: %d", count)),
@@ -116,16 +124,12 @@ func FLBPluginExit() int {
 
 func writeInfoLog(message string) {
 	currentTime := time.Now()
-	currentTime.Format("2006.01.02 15:04:05")
-
-	fmt.Printf("[%s][info][sqs-out] %s\n", currentTime, message)
+	fmt.Printf("[%s][info][sqs-out] %s\n", currentTime.Format("2006.01.02 15:04:05"), message)
 }
 
 func writeErrorLog(err error) {
 	currentTime := time.Now()
-	currentTime.Format("2006.01.02 15:04:05")
-
-	fmt.Printf("[%s][error][sqs-out] %v\n", currentTime, err)
+	fmt.Printf("[%s][error][sqs-out] %v\n", currentTime.Format("2006.01.02 15:04:05"), err)
 }
 
 func main() {
