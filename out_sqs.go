@@ -17,7 +17,7 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 // plugin (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	// Example to retrieve an optional configuration parameter
-	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
+	// queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
 	// fmt.Printf("[out-sqs] QueueUrl = '%s'\n", queueURL)
 
 	// if queueURL == "" {
