@@ -20,13 +20,13 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
 	fmt.Printf("[out-sqs] QueueUrl = '%s'\n", queueURL)
 
-	if queueURL == "" {
-		fmt.Printf("[out-sqs] QueueUrl configuration key is mandatory")
-		return output.FLB_ERROR
-	}
+	// if queueURL == "" {
+	// 	fmt.Printf("[out-sqs] QueueUrl configuration key is mandatory")
+	// 	return output.FLB_ERROR
+	// }
 
-	// Set the context with the relevant configuration keys
-	output.FLBPluginSetContext(plugin, queueURL)
+	// // Set the context with the relevant configuration keys
+	// output.FLBPluginSetContext(plugin, queueURL)
 
 	return output.FLB_OK
 }
