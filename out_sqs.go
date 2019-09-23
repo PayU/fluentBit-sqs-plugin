@@ -14,6 +14,12 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
+	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
+
+	if queueURL == "" {
+		return output.FLB_ERROR
+	}
+
 	return output.FLB_OK
 }
 
