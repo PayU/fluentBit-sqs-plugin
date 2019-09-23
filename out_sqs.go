@@ -75,7 +75,9 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 	// Iterate Records
 	count = 0
+
 	for {
+		writeInfoLog(fmt.Sprintf("count number is: %d", count))
 		// Extract Record
 		ret, ts, record = output.GetRecord(dec)
 		if ret != 0 {
@@ -87,16 +89,10 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		recordString := fmt.Sprintf("{\"tag\":\"%s\", \"timestamp\":\"%s\",", C.GoString(tag),
 			timestamp.String())
 
-		writeInfoLog("first")
-		writeInfoLog(recordString)
-
 		for k, v := range record {
 			recordString = recordString + fmt.Sprintf("\"%s\": %v, ", k, v)
 		}
 		recordString = recordString + fmt.Sprintf("}\n")
-
-		writeInfoLog("second")
-		writeInfoLog(recordString)
 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
 			Id:          aws.String(fmt.Sprintf("Message No: %d", count)),
