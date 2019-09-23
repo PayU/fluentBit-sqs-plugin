@@ -2,58 +2,36 @@ package main
 
 import (
 	"C"
-	"log"
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
 )
 
-// FLBPluginRegister is called by fluentBit
+// FLBPluginRegister Gets called only once when the plugin.so is loaded
 func FLBPluginRegister(def unsafe.Pointer) int {
 	return output.FLBPluginRegister(def, "sqs", "AWS SQS Output plugin")
 }
 
-// FLBPluginInit is called by fluentBit
+// FLBPluginInit Gets called only once for each instance you have configured.
 func FLBPluginInit(plugin unsafe.Pointer) int {
-	id := output.FLBPluginConfigKey(plugin, "QueueURL")
-	log.Printf("[multiinstance] id = %q", id)
-	// Set the context to point to any Go variable
-	output.FLBPluginSetContext(plugin, unsafe.Pointer(&id))
-	return output.FLB_OK
-}
+	queueURL := output.FLBPluginConfigKey(plugin, "QueueURL")
 
-//export FLBPluginFlush
-func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
-	log.Print("Flush called for unknown instance")
-	return output.FLB_OK
-}
-
-//export FLBPluginFlushCtx
-func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int {
-	// Cast context back into the original type for the Go variable
-	id := (*string)(ctx)
-	log.Printf("Flush called for id: %s", *id)
-
-	dec := output.NewDecoder(data, int(length))
-
-	for {
-		ret, _, _ := output.GetRecord(dec)
-		if ret != 0 {
-			break
-		}
+	if queueURL == "" {
+		return output.FLB_ERROR
 	}
 
 	return output.FLB_OK
 }
 
-//export FLBPluginExit
-func FLBPluginExit() int {
+// FLBPluginFlushCtx Gets called with a batch of records to be written to an instance.
+func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int {
 	return output.FLB_OK
 }
 
-// func writeLog(message string) {
-// 	log.Printf("[out-sqs] %s\n", message)
-// }
+// FLBPluginExit Gets called when shuting down fluntBit
+func FLBPluginExit() int {
+	return output.FLB_OK
+}
 
 func main() {
 }
