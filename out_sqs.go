@@ -79,7 +79,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		if count%10 == 0 {
 			sqsBatch = sqs.SendMessageBatchInput{
 				Entries:  sqsRecords,
-				QueueURL: aws.String(QueueURL),
+				QueueUrl: aws.String(QueueURL),
 			}
 			mySQS.SendMessageBatch(&sqsBatch)
 			sqsRecords = nil
