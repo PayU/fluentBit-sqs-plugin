@@ -127,11 +127,13 @@ func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchReques
 		QueueUrl: aws.String(sqsConf.queueURL),
 	}
 
-	output, _ := sqsConf.mySQS.SendMessageBatch(&sqsBatch)
+	output, err := sqsConf.mySQS.SendMessageBatch(&sqsBatch)
 
 	fmt.Println("----- Testing -------")
 	fmt.Println(output.Failed)
 	fmt.Println(output.Successful)
+	fmt.Println("---- Error Testing -------")
+	writeErrorLog(err)
 }
 
 func writeInfoLog(message string) {
