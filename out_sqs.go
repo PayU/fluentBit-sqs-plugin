@@ -10,6 +10,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/fluent/fluent-bit-go/output"
 )
+import (
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+)
 
 type sqsConfig struct {
 	queueURL string
@@ -48,15 +53,58 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 
 //export FLBPluginFlushCtx
 func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int {
+	var count int
+	var ret int
+	var ts interface{}
+	var record map[interface{}]interface{}
+	var sqsRecord *sqs.SendMessageBatchRequestEntry
+	var sqsBatch sqs.SendMessageBatchInput
+	var sqsRecords []*sqs.SendMessageBatchRequestEntry
+
 	// Type assert context back into the original type for the Go variable
-	_, ok := output.FLBPluginGetContext(ctx).(*sqsConfig)
+	sqsConf, ok := output.FLBPluginGetContext(ctx).(*sqsConfig)
 
 	if !ok {
 		writeErrorLog(errors.New("Unexpected error during get plugin context in flush function"))
 		return output.FLB_ERROR
 	}
 
-	writeInfoLog("on flush function")
+	// Create Fluent Bit decoder
+	dec := output.NewDecoder(data, int(length))
+	sqsBatch = sqs.SendMessageBatchInput{}
+	// Iterate Records
+	count = 0
+	for {
+		// Extract Record
+		ret, ts, record = output.GetRecord(dec)
+		if ret != 0 {
+			break
+		}
+
+		// Print record keys and values
+		timestamp := ts.(output.FLBTime)
+		recordString := fmt.Sprintf("{\"tag\":\"%s\", \"timestamp\":\"%s\",", C.GoString(tag),
+			timestamp.String())
+		for k, v := range record {
+			recordString = recordString + fmt.Sprintf("\"%s\": %v, ", k, v)
+		}
+		recordString = recordString + fmt.Sprintf("}\n")
+
+		sqsRecord = &sqs.SendMessageBatchRequestEntry{
+			Id:          aws.String(fmt.Sprintf("Message No: %d", count)),
+			MessageBody: aws.String(recordString),
+		}
+		sqsRecords = append(sqsRecords, sqsRecord)
+		count++
+		if count%10 == 0 {
+			sqsBatch = sqs.SendMessageBatchInput{
+				Entries:  sqsRecords,
+				QueueUrl: aws.String(sqsConf.queueURL),
+			}
+			sqsConf.mySQS.SendMessageBatch(&sqsBatch)
+			sqsRecords = nil
+		}
+	}
 
 	return output.FLB_OK
 }
@@ -67,11 +115,11 @@ func FLBPluginExit() int {
 }
 
 func writeInfoLog(message string) {
-	fmt.Printf("[sqs-out] %s\n", message)
+	fmt.Printf("[%s][info][sqs-out] %s\n", time.Now(), message)
 }
 
 func writeErrorLog(err error) {
-	fmt.Println("[sqs-out] ", err)
+	fmt.Printf("[%s][error][sqs-out] %v\n", time.Now(), err)
 }
 
 func main() {
