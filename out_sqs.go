@@ -7,7 +7,7 @@ import (
 	"github.com/fluent/fluent-bit-go/output"
 )
 
-//export FLBPluginRegister
+// FLBPluginRegister shai
 func FLBPluginRegister(def unsafe.Pointer) int {
 	return output.FLBPluginRegister(def, "sqs", "aws sqs output plugin")
 }
