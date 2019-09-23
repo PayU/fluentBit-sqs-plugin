@@ -113,7 +113,12 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		SqsRecords = append(SqsRecords, sqsRecord)
 
 		if MessageCounter%10 == 0 {
-			sendBatchToSqs(sqsConf, SqsRecords)
+			err := sendBatchToSqs(sqsConf, SqsRecords)
+
+			if err != nil {
+				writeErrorLog(err)
+				return output.FLB_ERROR
+			}
 
 			SqsRecords = nil
 			MessageCounter = 0
@@ -129,8 +134,8 @@ func FLBPluginExit() int {
 	return output.FLB_OK
 }
 
-func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchRequestEntry) {
-	writeInfoLog("going to send message to sqs")
+func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchRequestEntry) error {
+	writeInfoLog("sending batch messages to sqs..")
 	sqsBatch := sqs.SendMessageBatchInput{
 		Entries:  sqsRecords,
 		QueueUrl: aws.String(sqsConf.queueURL),
@@ -138,11 +143,15 @@ func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchReques
 
 	output, err := sqsConf.mySQS.SendMessageBatch(&sqsBatch)
 
-	fmt.Println("----- Testing -------")
-	fmt.Println(output.Failed)
-	fmt.Println(output.Successful)
-	fmt.Println("---- Error Testing -------")
-	writeErrorLog(err)
+	if err != nil {
+		return err
+	}
+
+	if len(output.Failed) > 0 {
+		fmt.Println(output.Failed)
+	}
+
+	return nil
 }
 
 func writeInfoLog(message string) {
