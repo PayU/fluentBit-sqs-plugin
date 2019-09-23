@@ -9,16 +9,16 @@ import (
 
 // FLBPluginRegister Gets called only once when the plugin.so is loaded
 func FLBPluginRegister(def unsafe.Pointer) int {
-	return output.FLBPluginRegister(def, "sqs", "AWS SQS Output plugin")
+	return output.FLBPluginRegister(def, "sqs", "aws sqs output plugin")
 }
 
 // FLBPluginInit Gets called only once for each instance you have configured.
 func FLBPluginInit(plugin unsafe.Pointer) int {
-	queueURL := output.FLBPluginConfigKey(plugin, "QueueURL")
+	// queueURL := output.FLBPluginConfigKey(plugin, "QueueURL")
 
-	if queueURL == "" {
-		return output.FLB_ERROR
-	}
+	// if queueURL == "" {
+	// 	return output.FLB_ERROR
+	// }
 
 	return output.FLB_OK
 }
