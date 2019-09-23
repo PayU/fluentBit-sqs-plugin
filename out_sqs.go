@@ -13,7 +13,7 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 	return output.FLBPluginRegister(def, "sqs", "AWS SQS Output plugin")
 }
 
-// export FLBPluginInit
+// FLBPluginInit is called by fluentBit
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	QueueURL := output.FLBPluginConfigKey(plugin, "QueueURL")
 	// writeLog(fmt.Sprintf("QueueURL: %s", QueueURL))
@@ -52,9 +52,9 @@ func FLBPluginExit() int {
 	return output.FLB_OK
 }
 
-func writeLog(message string) {
-	log.Printf("[out-sqs] %s\n", message)
-}
+// func writeLog(message string) {
+// 	log.Printf("[out-sqs] %s\n", message)
+// }
 
 func main() {
 }
