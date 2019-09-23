@@ -104,14 +104,18 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		}
 		sqsRecords = append(sqsRecords, sqsRecord)
 		count++
+
 		if count%10 == 0 {
+			writeInfoLog("going to send message to sqs")
 			sqsBatch = sqs.SendMessageBatchInput{
 				Entries:  sqsRecords,
 				QueueUrl: aws.String(sqsConf.queueURL),
 			}
 			sqsConf.mySQS.SendMessageBatch(&sqsBatch)
+			writeInfoLog("after sending messages to sqs")
 			sqsRecords = nil
 		}
+
 	}
 
 	return output.FLB_OK
