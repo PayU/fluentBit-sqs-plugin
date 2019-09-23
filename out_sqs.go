@@ -5,94 +5,71 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/fluent/fluent-bit-go/output"
 )
 
 var mySQS *sqs.SQS
-var QueueUrl string
 
-//export FLBPluginRegister
+// FLBPluginRegister is called by fluentbit
 func FLBPluginRegister(def unsafe.Pointer) int {
-	return output.FLBPluginRegister(def, "sqs", "SQS")
+	return output.FLBPluginRegister(def, "sqs", "Aws SQS")
 }
 
-//export FLBPluginInit
-// (fluentbit will call this)
+// FLBPluginInit is called by fluentbit
 // plugin (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(plugin unsafe.Pointer) int {
-	// Example to retrieve an optional configuration parameter
-	QueueUrl = output.FLBPluginConfigKey(plugin, "QueueUrl")
-	fmt.Printf("[flb-go] plugin parameter = '%s'\n", QueueUrl)
-	mySession, err := session.NewSession()
-	if err != nil {
-		fmt.Println("Error", err)
+	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
+	printLog(fmt.Sprintf("queueURL = %s", queueURL))
+
+	if queueURL == "" {
+		printLog("QueueUrl configuration is key mandatory")
 		return output.FLB_ERROR
 	}
-	mySQS = sqs.New(mySession)
+
+	// Set the context with the queueURL
+	output.FLBPluginSetContext(plugin, queueURL)
+
 	return output.FLB_OK
 }
 
-//export FLBPluginFlush
-func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
-	var count int
-	var ret int
-	var ts interface{}
-	var record map[interface{}]interface{}
-	var sqsRecord *sqs.SendMessageBatchRequestEntry
-	var sqsBatch sqs.SendMessageBatchInput
-	var sqsRecords []*sqs.SendMessageBatchRequestEntry
+// FLBPluginFlushCtx is called by fluentbit
+func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int {
+	// Type assert context back into the original type for the Go variable
+	queueURL := output.FLBPluginGetContext(ctx).(string)
+	printLog(fmt.Sprintf("flash called. queueURL = %s", queueURL))
 
-	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
-	sqsBatch = sqs.SendMessageBatchInput{}
-	// Iterate Records
-	count = 0
+
+	count := 0
 	for {
-		// Extract Record
-		ret, ts, record = output.GetRecord(dec)
+		ret, ts, record := output.GetRecord(dec)
 		if ret != 0 {
 			break
 		}
 
 		// Print record keys and values
 		timestamp := ts.(output.FLBTime)
-		recordString := fmt.Sprintf("{\"tag\":\"%s\", \"timestamp\":\"%s\",", C.GoString(tag),
-			timestamp.String())
-		for k, v := range record {
-			recordString = recordString + fmt.Sprintf("\"%s\": %v, ", k, v)
-		}
-		recordString = recordString + fmt.Sprintf("}\n")
+		fmt.Printf("[%d] %s: [%s, {", count, C.GoString(tag), timestamp.String())
 
-		sqsRecord = &sqs.SendMessageBatchRequestEntry{
-			Id:          aws.String(fmt.Sprintf("Message No: %d", count)),
-			MessageBody: aws.String(recordString),
+		for k, v := range record {
+			fmt.Printf("\"%s\": %v, ", k, v)
 		}
-		sqsRecords = append(sqsRecords, sqsRecord)
+		fmt.Printf("}\n")
 		count++
-		if count%10 == 0 {
-			sqsBatch = sqs.SendMessageBatchInput{
-				Entries:  sqsRecords,
-				QueueUrl: aws.String(QueueUrl),
-			}
-			mySQS.SendMessageBatch(&sqsBatch)
-			sqsRecords = nil
-		}
 	}
 
-	// Return options:
-	//
-	// output.FLB_OK    = data have been processed.
-	// output.FLB_ERROR = unrecoverable error, do not try this again.
-	// output.FLB_RETRY = retry to flush later.
+	return output.FLB_OK
+
+}
+
+// FLBPluginExit is called by fluentBit when shuting down
+func FLBPluginExit() int {
 	return output.FLB_OK
 }
 
-//export FLBPluginExit
-func FLBPluginExit() int {
-	return output.FLB_OK
+func printLog(message string) {
+	fmt.Printf("[sqs-output-plugin] %s'\n", message)
 }
 
 func main() {
