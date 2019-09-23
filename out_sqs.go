@@ -7,7 +7,6 @@ import (
 
 	"github.com/fluent/fluent-bit-go/output"
 )
-import "fmt"
 
 // export FLBPluginRegister
 func FLBPluginRegister(def unsafe.Pointer) int {
@@ -17,7 +16,7 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	QueueURL := output.FLBPluginConfigKey(plugin, "QueueURL")
-	writeLog(fmt.Sprintf("QueueURL: %s", QueueURL))
+	// writeLog(fmt.Sprintf("QueueURL: %s", QueueURL))
 
 	// Set the context to point to any Go variable
 	output.FLBPluginSetContext(plugin, unsafe.Pointer(&QueueURL))
@@ -53,9 +52,9 @@ func FLBPluginExit() int {
 	return output.FLB_OK
 }
 
-func writeLog(message string) {
-	fmt.Printf("[out-sqs] %s\n", message)
-}
+// func writeLog(message string) {
+// 	fmt.Printf("[out-sqs] %s\n", message)
+// }
 
 func main() {
 }
