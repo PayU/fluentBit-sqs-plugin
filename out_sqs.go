@@ -115,11 +115,17 @@ func FLBPluginExit() int {
 }
 
 func writeInfoLog(message string) {
-	fmt.Printf("[%s][info][sqs-out] %s\n", time.Now(), message)
+	currentTime := time.Now()
+	currentTime.Format("2006.01.02 15:04:05")
+
+	fmt.Printf("[%s][info][sqs-out] %s\n", currentTime, message)
 }
 
 func writeErrorLog(err error) {
-	fmt.Printf("[%s][error][sqs-out] %v\n", time.Now(), err)
+	currentTime := time.Now()
+	currentTime.Format("2006.01.02 15:04:05")
+
+	fmt.Printf("[%s][error][sqs-out] %v\n", currentTime, err)
 }
 
 func main() {
