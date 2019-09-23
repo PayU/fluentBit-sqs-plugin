@@ -112,7 +112,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 		SqsRecords = append(SqsRecords, sqsRecord)
 
-		if MessageCounter%10 == 0 {
+		if MessageCounter == 10 {
 			err := sendBatchToSqs(sqsConf, SqsRecords)
 
 			if err != nil {
