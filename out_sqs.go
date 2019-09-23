@@ -10,7 +10,7 @@ import (
 
 // FLBPluginRegister will called by fluentBit
 func FLBPluginRegister(def unsafe.Pointer) int {
-	return output.FLBPluginRegister(def, "sqs", "AWS SQS Output plugin")
+	return output.FLBPluginRegister(def, "aws_sqs", "AWS SQS Output plugin")
 }
 
 // FLBPluginInit will call by fluentBit
