@@ -1,72 +1,73 @@
-# Example: out_gstdout
+# FluentBit AWS-SQS Output Plugin
 
-The following example code implements a simple output plugin that prints the records to the standard output interface (STDOUT).
+FluntBit custom output plugin which allows sending of messages to AWS-SQS.
 
-Every output plugin go through four callbacks associated to different phases:
+## Configuration Parameters
 
-| Plugin Phase        | Callback                   |
-|---------------------|----------------------------|
-| Registration        | FLBPluginRegister()        |
-| Initialization      | FLBPluginInit()            |
-| Runtime Flush       | FLBPluginFlush()           |
-| Exit                | FLBPluginExit()            |
+| Configuration Key Name  | Description                          |
+|-------------------------|--------------------------------------|
+| QueueUrl                | the queue url in your aws account    |
+| QueueRegion             | the queue region in your aws account |
 
-## Plugin Registration
+```conf
+[SERVICE]
+    Flush        5
+    Daemon       Off
+    Log_Level    info
 
-When Fluent Bit loads a Golang plugin, it lookup and load the registration callback that aims to populate the internal structure with plugin name and description among others:
+    HTTP_Server  On
+    HTTP_Listen  0.0.0.0
+    HTTP_Port    2020
 
-```go
-//export FLBPluginRegister
-func FLBPluginRegister(ctx unsafe.Pointer) int {
-	return output.FLBPluginRegister(ctx, "gstdout", "Stdout GO!")
-}
+[INPUT]
+    Name   dummy
+    Rate   1
+    Tag    dummy.log
+
+[OUTPUT]
+    Name  sqs
+    Match *
+    QueueUrl    http://aws-sqs-url.com
+    QueueRegion eu-central-1
 ```
 
-This function is invoked at start time _before_ any configuration is done inside the engine.
+## Installation
 
-## Plugin Initialization
+Example of installation in docker file:  
 
-Before the engine starts, it initialize all plugins that were requested to start. Upon initialization a configuration context already exists, so the plugin can ask for configuration parameters or do any other internal checks. E.g:
+```bash
+FROM golang:1.12 as gobuilder
 
-```go
-//export FLBPluginInit
-func FLBPluginInit(ctx unsafe.Pointer) int {
-	return output.FLB_OK
-}
+WORKDIR /root
+
+ENV GOOS=linux\
+    GOARCH=amd64
+
+COPY / /root/
+
+RUN go build \
+    -buildmode=c-shared \
+    -o /out_sqs.so \
+    github.com/PayU/fluentBit-sqs-plugin
+
+FROM fluent/fluent-bit:1.1
+
+COPY --from=gobuilder /out_sqs.so /fluent-bit/bin/
+
+EXPOSE 2020
+
+ENTRYPOINT ["/fluent-bit/bin/fluent-bit"]
+CMD ["-c", "/fluent-bit/etc/some_configuration.conf", "-e", "/fluent-bit/bin/out_sqs.so"]
 ```
 
-The function must return FLB\_OK when it initialized properly or FLB\_ERROR if something went wrong. If the plugin reports an error, the engine will _not_ load the instance.
+More information about the usage and installation of golang plugins can be found here: https://docs.fluentbit.io/manual/development/golang_plugins 
 
-## Runtime Flush
+## Special Notes
 
-Upon flush time, when Fluent Bit want's to flush it buffers, the runtime flush callback will be triggered.
+- Aws Sqs credentials in golang SDK: </br> When you initialize a new service client without providing any credential arguments, the SDK uses the default credential provider chain to find AWS credentials. The SDK uses the first provider in the chain that returns credentials without an error. The default provider chain looks for credentials in the following order:
 
-The callback will receive a raw buffer of msgpack data with it proper bytes length and the tag associated.
+    	1) Environment variables. (AWS_SECRET_ACCESS_KEY and AWS_SECRET_KEY)
 
-```go
-//export FLBPluginFlush
-func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
-    return output.FLB_OK
-}
-```
+    	2)Shared credentials file.
 
-> for more details about how to process the incoming msgpack data, refer to the [out_gstdout.go](out_gstdout.go) file.
-
-When done, there are three returning values available:
-
-| Return value  | Description                                    |
-|---------------|------------------------------------------------|
-| FLB\_OK       | The data have been processed normally.         |
-| FLB\_ERROR    | An internal error have ocurred, the plugin will not handle the set of records/data again. |
-| FLB\_RETRY    | A recoverable error have ocurred, the engine can try to flush the records/data later.|
-
-## Plugin Exit
-
-When Fluent Bit will stop using the instance of the plugin, it will trigger the exit callback. e.g:
-
-```go
-//export FLBPluginExit
-func FLBPluginExit() int {
-	return output.FLB_OK
-}
-```
+		3) If your application is running on an Amazon EC2 instance, IAM role for Amazon EC2.
