@@ -1,6 +1,6 @@
 # FluentBit AWS-SQS Output Plugin
 
-FluntBit custom output plugin which allows sending of messages to AWS-SQS.
+FluntBit custom output plugin which allows sending messages to AWS-SQS.
 
 ## Configuration Parameters
 
