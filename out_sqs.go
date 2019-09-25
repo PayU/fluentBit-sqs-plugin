@@ -128,12 +128,6 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
 			Id:          aws.String(fmt.Sprintf("MessageNumber-%d", MessageCounter)),
 			MessageBody: aws.String(recordString),
-			MessageAttributes: map[string]*sqs.MessageAttributeValue{
-				"Component": &sqs.MessageAttributeValue{
-					DataType:    aws.String("String"),
-					StringValue: aws.String(tagStr),
-				},
-			},
 		}
 
 		if sqsConf.pluginTagAttribute != "" {
