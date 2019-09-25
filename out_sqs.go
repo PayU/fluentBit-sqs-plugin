@@ -90,6 +90,11 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			break
 		}
 
+		if len(record) == 0 {
+			writeInfoLog("got empty record from input. skipping it")
+			continue
+		}
+
 		// Print record keys and values
 		var timeStamp time.Time
 		switch t := ts.(type) {
@@ -111,9 +116,6 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			// error should be printed to console
 			continue
 		}
-
-		writeInfoLog(recordString)
-		writeInfoLog("------------")
 
 		MessageCounter++
 
@@ -168,7 +170,7 @@ func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchReques
 
 func createRecordString(timestamp time.Time, tag string, record map[interface{}]interface{}) (string, error) {
 	m := make(map[string]interface{})
-	// convert timestamp to RFC3339Nano which is logstash format
+	// convert timestamp to RFC3339Nano
 	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
 	m["@tag"] = tag
 	for k, v := range record {
