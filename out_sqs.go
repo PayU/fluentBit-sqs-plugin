@@ -149,7 +149,6 @@ func FLBPluginExit() int {
 }
 
 func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchRequestEntry) error {
-	writeInfoLog("sending batch messages to sqs..")
 	sqsBatch := sqs.SendMessageBatchInput{
 		Entries:  sqsRecords,
 		QueueUrl: aws.String(sqsConf.queueURL),
