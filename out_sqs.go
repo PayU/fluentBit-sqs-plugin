@@ -105,7 +105,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		recordString = recordString + fmt.Sprintf("}\n")
 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
-			Id:          aws.String(fmt.Sprintf("message number %d", MessageCounter)),
+			Id:          aws.String(fmt.Sprintf("MessageNumber-%d", MessageCounter)),
 			MessageBody: aws.String(recordString),
 		}
 
