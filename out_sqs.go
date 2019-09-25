@@ -21,8 +21,9 @@ var MessageCounter int = 0
 var SqsRecords []*sqs.SendMessageBatchRequestEntry
 
 type sqsConfig struct {
-	queueURL string
-	mySQS    *sqs.SQS
+	queueURL           string
+	mySQS              *sqs.SQS
+	pluginTagAttribute string
 }
 
 //export FLBPluginRegister
@@ -34,7 +35,10 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
 	queueRegion := output.FLBPluginConfigKey(plugin, "QueueRegion")
+	pluginTagAttribute := output.FLBPluginConfigKey(plugin, "PluginTagAttribute")
 	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
+	writeInfoLog(fmt.Sprintf("QueueRegion is: %s", queueRegion))
+	writeInfoLog(fmt.Sprintf("pluginTagAttribute is: %s", pluginTagAttribute))
 
 	if queueURL == "" {
 		writeErrorLog(errors.New("QueueUrl configuration key is mandatory"))
@@ -57,8 +61,9 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 
 	// Set the context to point to any Go variable
 	output.FLBPluginSetContext(plugin, &sqsConfig{
-		queueURL: queueURL,
-		mySQS:    sqs.New(myAWSSession),
+		queueURL:           queueURL,
+		mySQS:              sqs.New(myAWSSession),
+		pluginTagAttribute: pluginTagAttribute,
 	})
 
 	return output.FLB_OK
@@ -129,6 +134,15 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 					StringValue: aws.String(tagStr),
 				},
 			},
+		}
+
+		if sqsConf.pluginTagAttribute != "" {
+			sqsRecord.MessageAttributes = map[string]*sqs.MessageAttributeValue{
+				sqsConf.pluginTagAttribute: &sqs.MessageAttributeValue{
+					DataType:    aws.String("String"),
+					StringValue: aws.String(tagStr),
+				},
+			}
 		}
 
 		SqsRecords = append(SqsRecords, sqsRecord)
