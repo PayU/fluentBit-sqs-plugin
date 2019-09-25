@@ -4,17 +4,15 @@ import (
 	"C"
 	"errors"
 	"fmt"
+	"time"
 	"unsafe"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/fluent/fluent-bit-go/output"
 )
-import (
-	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-)
+import "encoding/json"
 
 // MessageCounter is used for count the current SQS Batch messages
 var MessageCounter int = 0
@@ -92,17 +90,32 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			break
 		}
 
-		MessageCounter++
-
 		// Print record keys and values
-		timestamp := ts.(output.FLBTime)
-		recordString := fmt.Sprintf("{\"tag\":\"%s\", \"timestamp\":\"%s\",", C.GoString(tag),
-			timestamp.String())
-
-		for k, v := range record {
-			recordString = recordString + fmt.Sprintf("\"%s\": %v, ", k, v)
+		var timeStamp time.Time
+		switch t := ts.(type) {
+		case output.FLBTime:
+			timeStamp = ts.(output.FLBTime).Time
+		case uint64:
+			timeStamp = time.Unix(int64(t), 0)
+		default:
+			writeInfoLog("given time is not in a known format, defaulting to now")
+			timeStamp = time.Now()
 		}
-		recordString = recordString + fmt.Sprintf("}\n")
+
+		recordString, err := createRecordString(timeStamp, C.GoString(tag), record)
+
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			// DO NOT RETURN HERE becase one message has an error when json is
+			// generated, but a retry would fetch ALL messages again. instead an
+			// error should be printed to console
+			continue
+		}
+
+		writeInfoLog(recordString)
+		writeInfoLog("------------")
+
+		MessageCounter++
 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
 			Id:          aws.String(fmt.Sprintf("MessageNumber-%d", MessageCounter)),
@@ -151,6 +164,29 @@ func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchReques
 	}
 
 	return nil
+}
+
+func createRecordString(timestamp time.Time, tag string, record map[interface{}]interface{}) (string, error) {
+	m := make(map[string]interface{})
+	// convert timestamp to RFC3339Nano which is logstash format
+	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
+	m["@tag"] = tag
+	for k, v := range record {
+		switch t := v.(type) {
+		case []byte:
+			// prevent encoding to base64
+			m[k.(string)] = string(t)
+		default:
+			m[k.(string)] = v
+		}
+	}
+	js, err := json.Marshal(m)
+	if err != nil {
+		writeErrorLog(fmt.Errorf("error creating message for sqs: %v", err))
+		return "", err
+	}
+
+	return string(js), nil
 }
 
 func writeInfoLog(message string) {
