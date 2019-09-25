@@ -107,7 +107,8 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			timeStamp = time.Now()
 		}
 
-		recordString, err := createRecordString(timeStamp, C.GoString(tag), record)
+		tagStr := C.GoString(tag)
+		recordString, err := createRecordString(timeStamp, tagStr, record)
 
 		if err != nil {
 			fmt.Printf("%v\n", err)
@@ -122,6 +123,12 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
 			Id:          aws.String(fmt.Sprintf("MessageNumber-%d", MessageCounter)),
 			MessageBody: aws.String(recordString),
+			MessageAttributes: map[string]*sqs.MessageAttributeValue{
+				"Component": &sqs.MessageAttributeValue{
+					DataType:    aws.String("String"),
+					StringValue: aws.String(tagStr),
+				},
+			},
 		}
 
 		SqsRecords = append(SqsRecords, sqsRecord)
