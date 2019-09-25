@@ -93,7 +93,6 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		}
 
 		MessageCounter++
-		writeInfoLog(fmt.Sprintf("count number is: %d", MessageCounter))
 
 		// Print record keys and values
 		timestamp := ts.(output.FLBTime)
@@ -106,7 +105,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		recordString = recordString + fmt.Sprintf("}\n")
 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
-			Id:          aws.String(fmt.Sprintf("Message No: %d", MessageCounter)),
+			Id:          aws.String(fmt.Sprintf("message number %d", MessageCounter)),
 			MessageBody: aws.String(recordString),
 		}
 
