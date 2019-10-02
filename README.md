@@ -4,10 +4,11 @@ FluntBit custom output plugin which allows sending messages to AWS-SQS.
 
 ## Configuration Parameters
 
-| Configuration Key Name  | Description                          |
-|-------------------------|--------------------------------------|
-| QueueUrl                | the queue url in your aws account    |
-| QueueRegion             | the queue region in your aws account |
+| Configuration Key Name  | Description                          | Mandatory |
+|-------------------------|--------------------------------------|-----------|
+| QueueUrl                | the queue url in your aws account    | yes       |
+| QueueRegion             | the queue region in your aws account | yes       |
+| PluginTagAttribute      | attribute name of the message tag    | no        | 
 
 ```conf
 [SERVICE]
