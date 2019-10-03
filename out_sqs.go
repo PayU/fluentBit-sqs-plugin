@@ -186,7 +186,6 @@ func createRecordString(timestamp time.Time, tag string, record map[interface{}]
 	m := make(map[string]interface{})
 	// convert timestamp to RFC3339Nano
 	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
-	m["@tag"] = tag
 	for k, v := range record {
 		switch t := v.(type) {
 		case []byte:
