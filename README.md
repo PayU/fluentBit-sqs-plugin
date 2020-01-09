@@ -4,11 +4,12 @@ FluntBit custom output plugin which allows sending messages to AWS-SQS.
 
 ## Configuration Parameters
 
-| Configuration Key Name  | Description                          | Mandatory |
-|-------------------------|--------------------------------------|-----------|
-| QueueUrl                | the queue url in your aws account    | yes       |
-| QueueRegion             | the queue region in your aws account | yes       |
-| PluginTagAttribute      | attribute name of the message tag    | no        | 
+| Configuration Key Name | Description                           | Mandatory |
+| ---------------------- | ------------------------------------- | --------- |
+| QueueUrl               | the queue url in your aws account     | yes       |
+| QueueRegion            | the queue region in your aws account  | yes       |
+| PluginTagAttribute     | attribute name of the message tag     | no        |
+| QueueMessageGroupId    | the group id required for fifo queues | fifo-only |
 
 ```conf
 [SERVICE]
