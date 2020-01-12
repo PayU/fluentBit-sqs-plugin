@@ -64,7 +64,8 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	}
 
 	myAWSSession, err := session.NewSession(&aws.Config{
-		Region: aws.String(queueRegion),
+		Region:                        aws.String(queueRegion),
+		CredentialsChainVerboseErrors: aws.Bool(true),
 	})
 
 	if err != nil {
