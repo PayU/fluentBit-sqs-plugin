@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/fluent/fluent-bit-go/output"
@@ -61,6 +62,18 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 			writeErrorLog(errors.New("QueueMessageGroupId configuration key is mandatory for FIFO queues: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html"))
 			return output.FLB_ERROR
 		}
+	}
+
+	creds := credentials.NewEnvCredentials()
+
+	// Retrieve the credentials value
+	credValue, err := creds.Get()
+	if err != nil {
+		// handle error
+		writeErrorLog(err)
+	} else {
+		writeInfoLog(credValue.AccessKeyID)
+		writeInfoLog(credValue.SecretAccessKey)
 	}
 
 	myAWSSession, err := session.NewSession(&aws.Config{
