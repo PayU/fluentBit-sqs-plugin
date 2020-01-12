@@ -98,6 +98,8 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		return output.FLB_ERROR
 	}
 
+	fmt.Println("im here!!")
+
 	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
 
