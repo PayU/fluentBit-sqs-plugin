@@ -68,8 +68,8 @@ More information about the usage and installation of golang plugins can be found
 
 - Aws Sqs credentials in golang SDK: </br> When you initialize a new service client without providing any credential arguments, the SDK uses the default credential provider chain to find AWS credentials. The SDK uses the first provider in the chain that returns credentials without an error. The default provider chain looks for credentials in the following order:
 
-    	1) Environment variables. (AWS_SECRET_ACCESS_KEY and AWS_SECRET_KEY)
+    	1) Environment variables. (AWS_SECRET_ACCESS_KEY and AWS_ACCESS_KEY_ID)
 
-    	2)Shared credentials file.
+    	2) Shared credentials file.
 
 		3) If your application is running on an Amazon EC2 instance, IAM role for Amazon EC2.

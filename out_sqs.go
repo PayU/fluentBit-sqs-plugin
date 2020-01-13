@@ -79,7 +79,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		})
 	} else {
 		// environment variables credentials was found
-		writeInfoLog("environment variables credentials was found")
+		writeInfoLog("environment variables credentials where found")
 		myAWSSession, sessionError = session.NewSession(&aws.Config{
 			Region:                        aws.String(queueRegion),
 			CredentialsChainVerboseErrors: aws.Bool(true),
@@ -117,8 +117,6 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		writeErrorLog(errors.New("Unexpected error during get plugin context in flush function"))
 		return output.FLB_ERROR
 	}
-
-	fmt.Println("im here!!")
 
 	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
