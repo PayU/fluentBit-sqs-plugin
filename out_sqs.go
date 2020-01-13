@@ -26,7 +26,7 @@ var SqsRecords []*sqs.SendMessageBatchRequestEntry
 
 type sqsConfig struct {
 	queueURL            string
-	queueMessageGroupId string
+	queueMessageGroupID string
 	mySQS               *sqs.SQS
 	pluginTagAttribute  string
 }
@@ -40,11 +40,11 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 func FLBPluginInit(plugin unsafe.Pointer) int {
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
 	queueRegion := output.FLBPluginConfigKey(plugin, "QueueRegion")
-	queueMessageGroupId := output.FLBPluginConfigKey(plugin, "QueueMessageGroupId")
+	queueMessageGroupID := output.FLBPluginConfigKey(plugin, "QueueMessageGroupId")
 	pluginTagAttribute := output.FLBPluginConfigKey(plugin, "PluginTagAttribute")
 	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
 	writeInfoLog(fmt.Sprintf("QueueRegion is: %s", queueRegion))
-	writeInfoLog(fmt.Sprintf("QueueMessageGroupId is: %s", queueMessageGroupId))
+	writeInfoLog(fmt.Sprintf("QueueMessageGroupId is: %s", queueMessageGroupID))
 	writeInfoLog(fmt.Sprintf("pluginTagAttribute is: %s", pluginTagAttribute))
 
 	if queueURL == "" {
@@ -58,38 +58,44 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	}
 
 	if strings.HasSuffix(queueURL, ".fifo") {
-		if queueMessageGroupId == "" {
+		if queueMessageGroupID == "" {
 			writeErrorLog(errors.New("QueueMessageGroupId configuration key is mandatory for FIFO queues: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html"))
 			return output.FLB_ERROR
 		}
 	}
 
-	creds := credentials.NewEnvCredentials()
+	writeInfoLog("retrieving aws credentials from environment variables")
+	awsCredentials := credentials.NewEnvCredentials()
+	var myAWSSession *session.Session
+	var sessionError error
 
 	// Retrieve the credentials value
-	credValue, err := creds.Get()
-	if err != nil {
-		// handle error
-		writeErrorLog(err)
+	_, credError := awsCredentials.Get()
+	if credError != nil {
+		writeInfoLog("unable to find aws credentials from environment variables..using credentials chain")
+		myAWSSession, sessionError = session.NewSession(&aws.Config{
+			Region:                        aws.String(queueRegion),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+		})
 	} else {
-		writeInfoLog(credValue.AccessKeyID)
-		writeInfoLog(credValue.SecretAccessKey)
+		// environment variables credentials was found
+		writeInfoLog("environment variables credentials was found")
+		myAWSSession, sessionError = session.NewSession(&aws.Config{
+			Region:                        aws.String(queueRegion),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+			Credentials:                   awsCredentials,
+		})
 	}
 
-	myAWSSession, err := session.NewSession(&aws.Config{
-		Region:                        aws.String(queueRegion),
-		CredentialsChainVerboseErrors: aws.Bool(true),
-	})
-
-	if err != nil {
-		writeErrorLog(err)
+	if sessionError != nil {
+		writeErrorLog(sessionError)
 		return output.FLB_ERROR
 	}
 
 	// Set the context to point to any Go variable
 	output.FLBPluginSetContext(plugin, &sqsConfig{
 		queueURL:            queueURL,
-		queueMessageGroupId: queueMessageGroupId,
+		queueMessageGroupID: queueMessageGroupID,
 		mySQS:               sqs.New(myAWSSession),
 		pluginTagAttribute:  pluginTagAttribute,
 	})
@@ -158,7 +164,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
 			Id:             aws.String(fmt.Sprintf("MessageNumber-%d", MessageCounter)),
 			MessageBody:    aws.String(recordString),
-			MessageGroupId: aws.String(sqsConf.queueMessageGroupId),
+			MessageGroupId: aws.String(sqsConf.queueMessageGroupID),
 		}
 
 		if sqsConf.pluginTagAttribute != "" {
