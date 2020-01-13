@@ -160,9 +160,8 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		MessageCounter++
 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
-			Id:             aws.String(fmt.Sprintf("MessageNumber-%d", MessageCounter)),
-			MessageBody:    aws.String(recordString),
-			MessageGroupId: aws.String(sqsConf.queueMessageGroupID),
+			Id:          aws.String(fmt.Sprintf("MessageNumber-%d", MessageCounter)),
+			MessageBody: aws.String(recordString),
 		}
 
 		if sqsConf.pluginTagAttribute != "" {
@@ -172,6 +171,10 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 					StringValue: aws.String(tagStr),
 				},
 			}
+		}
+
+		if sqsConf.queueMessageGroupID != "" {
+			sqsRecord.MessageGroupId = aws.String(sqsConf.queueMessageGroupID)
 		}
 
 		SqsRecords = append(SqsRecords, sqsRecord)
