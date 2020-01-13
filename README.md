@@ -59,7 +59,7 @@ COPY --from=gobuilder /out_sqs.so /fluent-bit/bin/
 EXPOSE 2020
 
 ENTRYPOINT ["/fluent-bit/bin/fluent-bit"]
-CMD ["-c", "/fluent-bit/etc/some_configuration.conf", "-e", "/fluent-bit/bin/out_sqs.so"]
+CMD ["-c", "/fluent-bit/etc/some_configuration.conf", "-e", "/fluent-bit/bin/fluentBit-sqs-plugin.so"]
 ```
 
 More information about the usage and installation of golang plugins can be found here: https://docs.fluentbit.io/manual/development/golang_plugins 
@@ -68,8 +68,8 @@ More information about the usage and installation of golang plugins can be found
 
 - Aws Sqs credentials in golang SDK: </br> When you initialize a new service client without providing any credential arguments, the SDK uses the default credential provider chain to find AWS credentials. The SDK uses the first provider in the chain that returns credentials without an error. The default provider chain looks for credentials in the following order:
 
-    	1) Environment variables. (AWS_SECRET_ACCESS_KEY and AWS_ACCESS_KEY_ID)
+     1) Environment variables. (AWS_SECRET_ACCESS_KEY and AWS_ACCESS_KEY_ID)
 
-    	2) Shared credentials file.
+     2) Shared credentials file.
 
-		3) If your application is running on an Amazon EC2 instance, IAM role for Amazon EC2.
+     3) If your application is running on an Amazon EC2 instance, IAM role for Amazon EC2.
