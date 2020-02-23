@@ -72,4 +72,4 @@ More information about the usage and installation of golang plugins can be found
 
      2) Shared credentials file.
 
-     3) If your application is running on an Amazon EC2 instance, IAM role for Amazon EC2.
+     3) If your application is running on an Amazon EC2 instance, IAM role for Amazon EC2. The IAM role should have full access to your SQS and in addition, it should add the following KMS permissions: `kms:GenerateDataKey*, kms:Get*, kms:Decrypt*`
