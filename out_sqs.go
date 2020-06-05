@@ -224,7 +224,7 @@ func unBoxMap(innerRecord map[interface{}]interface{}) (map[string]interface{}, 
 	myMap := make(map[string]interface{})
 	for key, value := range innerRecord {
 		switch t := value.(type) {
-		case map[string]interface{}:
+		case map[interface{}]interface{}:
 			myInnerMap := value.(map[interface{}]interface{})
 			goDown, err := unBoxMap(myInnerMap)
 			if err != nil {
@@ -261,6 +261,7 @@ func createRecordString(timestamp time.Time, tag string, record map[interface{}]
 	// 		m[k.(string)] = v
 	// 	}
 	// }
+        fmt.Println(m)
 	js, err := json.Marshal(m)
 	if err != nil {
 		writeErrorLog(fmt.Errorf("error creating message for sqs. tag: %s. error: %v", tag, err))
