@@ -261,6 +261,7 @@ func createRecordString(timestamp time.Time, tag string, record map[interface{}]
 	// 		m[k.(string)] = v
 	// 	}
 	// }
+        fmt.Println(m)
 	js, err := json.Marshal(m)
 	if err != nil {
 		writeErrorLog(fmt.Errorf("error creating message for sqs. tag: %s. error: %v", tag, err))
