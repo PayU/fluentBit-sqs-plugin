@@ -224,7 +224,7 @@ func unBoxMap(innerRecord map[interface{}]interface{}) (map[string]interface{}, 
 	myMap := make(map[string]interface{})
 	for key, value := range innerRecord {
 		switch t := value.(type) {
-		case map[string]interface{}:
+		case map[interface{}]interface{}:
 			myInnerMap := value.(map[interface{}]interface{})
 			goDown, err := unBoxMap(myInnerMap)
 			if err != nil {
