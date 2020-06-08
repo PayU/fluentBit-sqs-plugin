@@ -245,23 +245,13 @@ func unBoxMap(innerRecord map[interface{}]interface{}) (map[string]interface{}, 
 }
 
 func createRecordString(timestamp time.Time, tag string, record map[interface{}]interface{}) (string, error) {
-	// m := make(map[string]interface{})
 	m, err := unBoxMap(record)
 	if err != nil {
 		writeErrorLog(fmt.Errorf("error calling unBoxMap(record)"))
 	}
 	// convert timestamp to RFC3339Nano
 	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
-	// for k, v := range record {
-	// 	switch t := v.(type) {
-	// 	case []byte:
-	// 		// prevent encoding to base64
-	// 		m[k.(string)] = string(t)
-	// 	default:
-	// 		m[k.(string)] = v
-	// 	}
-	// }
-        fmt.Println(m)
+	fmt.Println(m)
 	js, err := json.Marshal(m)
 	if err != nil {
 		writeErrorLog(fmt.Errorf("error creating message for sqs. tag: %s. error: %v", tag, err))
