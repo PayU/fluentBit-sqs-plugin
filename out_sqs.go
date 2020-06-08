@@ -251,7 +251,7 @@ func createRecordString(timestamp time.Time, tag string, record map[interface{}]
 	}
 	// convert timestamp to RFC3339Nano
 	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
-	fmt.Println(m)
+
 	js, err := json.Marshal(m)
 	if err != nil {
 		writeErrorLog(fmt.Errorf("error creating message for sqs. tag: %s. error: %v", tag, err))
