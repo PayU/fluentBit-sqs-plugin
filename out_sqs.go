@@ -36,14 +36,11 @@ type sqsConfig struct {
 
 //export FLBPluginRegister
 func FLBPluginRegister(def unsafe.Pointer) int {
-	writeDebugLog("starting FLBPluginRegister")
 	return output.FLBPluginRegister(def, "sqs", "aws sqs output plugin")
 }
 
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
-	writeDebugLog("starting FLBPluginInit")
-
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
 	queueRegion := output.FLBPluginConfigKey(plugin, "QueueRegion")
 	queueMessageGroupID := output.FLBPluginConfigKey(plugin, "QueueMessageGroupId")
@@ -106,8 +103,6 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 				},
 			},
 		}
-
-		writeInfoLog(awsConfig)
 	}
 
 	// create the session
@@ -275,11 +270,6 @@ func writeInfoLog(message string) {
 func writeErrorLog(err error) {
 	currentTime := time.Now()
 	fmt.Printf("[%s][error][sqs-out] %v\n", currentTime.Format("2006.01.02 15:04:05"), err)
-}
-
-func writeDebugLog(message string) {
-	currentTime := time.Now()
-	fmt.Printf("[%s][debug][sqs-out] %s\n", currentTime.Format("2006.01.02 15:04:05"), message)
 }
 
 func main() {
