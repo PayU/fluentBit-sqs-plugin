@@ -47,6 +47,8 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	writeInfoLog(fmt.Sprintf("QueueMessageGroupId is: %s", queueMessageGroupID))
 	writeInfoLog(fmt.Sprintf("pluginTagAttribute is: %s", pluginTagAttribute))
 
+	writeInfoLog("Im here on testing!!")
+
 	if queueURL == "" {
 		writeErrorLog(errors.New("QueueUrl configuration key is mandatory"))
 		return output.FLB_ERROR
@@ -250,6 +252,11 @@ func writeInfoLog(message string) {
 func writeErrorLog(err error) {
 	currentTime := time.Now()
 	fmt.Printf("[%s][error][sqs-out] %v\n", currentTime.Format("2006.01.02 15:04:05"), err)
+}
+
+func writeDebugLog(message string) {
+	currentTime := time.Now()
+	fmt.Printf("[%s][debug][sqs-out] %s\n", currentTime.Format("2006.01.02 15:04:05"), message)
 }
 
 func main() {
