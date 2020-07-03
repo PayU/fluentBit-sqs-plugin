@@ -15,6 +15,8 @@ import (
 )
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -29,25 +31,30 @@ type sqsConfig struct {
 	queueMessageGroupID string
 	mySQS               *sqs.SQS
 	pluginTagAttribute  string
+	proxyURL            string
 }
 
 //export FLBPluginRegister
 func FLBPluginRegister(def unsafe.Pointer) int {
+	writeDebugLog("starting FLBPluginRegister")
 	return output.FLBPluginRegister(def, "sqs", "aws sqs output plugin")
 }
 
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
+	writeDebugLog("starting FLBPluginInit")
+
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
 	queueRegion := output.FLBPluginConfigKey(plugin, "QueueRegion")
 	queueMessageGroupID := output.FLBPluginConfigKey(plugin, "QueueMessageGroupId")
 	pluginTagAttribute := output.FLBPluginConfigKey(plugin, "PluginTagAttribute")
+	proxyURL := output.FLBPluginConfigKey(plugin, "ProxyURL")
+
 	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
 	writeInfoLog(fmt.Sprintf("QueueRegion is: %s", queueRegion))
 	writeInfoLog(fmt.Sprintf("QueueMessageGroupId is: %s", queueMessageGroupID))
 	writeInfoLog(fmt.Sprintf("pluginTagAttribute is: %s", pluginTagAttribute))
-
-	writeInfoLog("Im here on testing!!")
+	writeInfoLog(fmt.Sprintf("ProxyUrl is: %s", proxyURL))
 
 	if queueURL == "" {
 		writeErrorLog(errors.New("QueueUrl configuration key is mandatory"))
@@ -70,25 +77,41 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	awsCredentials := credentials.NewEnvCredentials()
 	var myAWSSession *session.Session
 	var sessionError error
+	var awsConfig *aws.Config
 
 	// Retrieve the credentials value
 	_, credError := awsCredentials.Get()
 	if credError != nil {
 		writeInfoLog("unable to find aws credentials from environment variables..using credentials chain")
-		myAWSSession, sessionError = session.NewSession(&aws.Config{
+		awsConfig = &aws.Config{
 			Region:                        aws.String(queueRegion),
 			CredentialsChainVerboseErrors: aws.Bool(true),
-		})
+		}
 	} else {
-		// environment variables credentials was found
 		writeInfoLog("environment variables credentials where found")
-		myAWSSession, sessionError = session.NewSession(&aws.Config{
+		awsConfig = &aws.Config{
 			Region:                        aws.String(queueRegion),
 			CredentialsChainVerboseErrors: aws.Bool(true),
 			Credentials:                   awsCredentials,
-		})
+		}
 	}
 
+	// if proxy
+	if proxyURL != "" {
+		writeInfoLog("set http client struct on aws configuration since proxy url has been found")
+		awsConfig.HTTPClient = &http.Client{
+			Transport: &http.Transport{
+				Proxy: func(*http.Request) (*url.URL, error) {
+					return url.Parse(proxyURL) // Or your own implementation that decides a proxy based on the URL in the request
+				},
+			},
+		}
+
+		writeInfoLog(awsConfig)
+	}
+
+	// create the session
+	myAWSSession, sessionError = session.NewSession(awsConfig)
 	if sessionError != nil {
 		writeErrorLog(sessionError)
 		return output.FLB_ERROR
