@@ -215,13 +215,13 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		if MessageCounter == 10 {
 			err := sendBatchToSqs(sqsConf, SqsRecords)
 
+			SqsRecords = nil
+			MessageCounter = 0
+
 			if err != nil {
 				writeErrorLog(err)
 				return output.FLB_ERROR
 			}
-
-			SqsRecords = nil
-			MessageCounter = 0
 		}
 	}
 
