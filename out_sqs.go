@@ -264,12 +264,12 @@ func createRecordString(timestamp time.Time, tag string, record map[interface{}]
 
 func writeInfoLog(message string) {
 	currentTime := time.Now()
-	fmt.Printf("[%s][info][sqs-out] %s\n", currentTime.Format("2006.01.02 15:04:05"), message)
+	fmt.Printf("[%s] [info] [sqs-out] %s\n", currentTime.Format("2006.01.02 15:04:05"), message)
 }
 
 func writeErrorLog(err error) {
 	currentTime := time.Now()
-	fmt.Printf("[%s][error][sqs-out] %v\n", currentTime.Format("2006.01.02 15:04:05"), err)
+	fmt.Printf("[%s] [error] [sqs-out] %v\n", currentTime.Format("2006.01.02 15:04:05"), err)
 }
 
 func main() {
