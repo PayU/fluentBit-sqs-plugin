@@ -252,19 +252,38 @@ func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchReques
 	return nil
 }
 
-func createRecordString(timestamp time.Time, tag string, record map[interface{}]interface{}) (string, error) {
-	m := make(map[string]interface{})
-	// convert timestamp to RFC3339Nano
-	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
-	for k, v := range record {
-		switch t := v.(type) {
+func unBoxMap(innerRecord map[interface{}]interface{}) (map[string]interface{}, error) {
+	myMap := make(map[string]interface{})
+	for key, value := range innerRecord {
+		switch t := value.(type) {
+		case map[interface{}]interface{}:
+			myInnerMap := value.(map[interface{}]interface{})
+			goDown, err := unBoxMap(myInnerMap)
+			if err != nil {
+				writeErrorLog(fmt.Errorf("error calling unBoxMap recursively"))
+				return myMap, err
+			}
+			for innerKey, innerValue := range goDown {
+				myMap[innerKey] = innerValue
+			}
 		case []byte:
 			// prevent encoding to base64
-			m[k.(string)] = string(t)
+			myMap[key.(string)] = string(t)
 		default:
-			m[k.(string)] = v
+			myMap[key.(string)] = value
 		}
 	}
+	return myMap, nil
+}
+
+func createRecordString(timestamp time.Time, tag string, record map[interface{}]interface{}) (string, error) {
+	m, err := unBoxMap(record)
+	if err != nil {
+		writeErrorLog(fmt.Errorf("error calling unBoxMap(record)"))
+	}
+	// convert timestamp to RFC3339Nano
+	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
+
 	js, err := json.Marshal(m)
 	if err != nil {
 		writeErrorLog(fmt.Errorf("error creating message for sqs. tag: %s. error: %v", tag, err))
