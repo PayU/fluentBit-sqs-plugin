@@ -53,7 +53,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	queueRegion := output.FLBPluginConfigKey(plugin, "QueueRegion")
 	queueMessageGroupID := output.FLBPluginConfigKey(plugin, "QueueMessageGroupId")
 	pluginTagAttribute := output.FLBPluginConfigKey(plugin, "PluginTagAttribute")
-	proxyURL := output.FLBPluginConfigKey(plugin, "ProxyURL")
+	proxyURL := output.FLBPluginConfigKey(plugin, "ProxyUrl")
 
 	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
 	writeInfoLog(fmt.Sprintf("QueueRegion is: %s", queueRegion))
