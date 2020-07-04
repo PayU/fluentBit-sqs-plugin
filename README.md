@@ -4,12 +4,13 @@ FluntBit custom output plugin which allows sending messages to AWS-SQS.
 
 ## Configuration Parameters
 
-| Configuration Key Name | Description                           | Mandatory |
-| ---------------------- | ------------------------------------- | --------- |
-| QueueUrl               | the queue url in your aws account     | yes       |
-| QueueRegion            | the queue region in your aws account  | yes       |
-| PluginTagAttribute     | attribute name of the message tag     | no        |
-| QueueMessageGroupId    | the group id required for fifo queues | fifo-only |
+| Configuration Key Name | Description                                              | Mandatory |
+| ---------------------- | -------------------------------------------------------- | --------- |
+| QueueUrl               | the queue url in your aws account                        | yes       |
+| QueueRegion            | the queue region in your aws account                     | yes       |
+| PluginTagAttribute     | attribute name of the message tag                        | no        |
+| QueueMessageGroupId    | the group id required for fifo queues                    | fifo-only |
+| ProxyUrl               | the proxy address between fluentbit and sqs (if exists)  | no        |
 
 ```conf
 [SERVICE]
@@ -73,3 +74,5 @@ More information about the usage and installation of golang plugins can be found
      2) Shared credentials file.
 
      3) If your application is running on an Amazon EC2 instance, IAM role for Amazon EC2. The IAM role should have full access to your SQS and in addition, it should add the following KMS permissions: `kms:GenerateDataKey*, kms:Get*, kms:Decrypt*`
+
+- The plugin uses specific environment variable for log level: `SQS_OUT_LOG_LEVEL`. Supported values are: `debug`, `info` or `error`     
