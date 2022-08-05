@@ -11,6 +11,7 @@ FluntBit custom output plugin which allows sending messages to AWS-SQS.
 | PluginTagAttribute     | attribute name of the message tag                        | no        |
 | QueueMessageGroupId    | the group id required for fifo queues                    | fifo-only |
 | ProxyUrl               | the proxy address between fluentbit and sqs (if exists)  | no        |
+| BatchSize              | set amount of messages to be sent in a batch request     | yes       |
 
 ```conf
 [SERVICE]
@@ -32,6 +33,7 @@ FluntBit custom output plugin which allows sending messages to AWS-SQS.
     Match *
     QueueUrl    http://aws-sqs-url.com
     QueueRegion eu-central-1
+    BatchSize   10
 ```
 
 ## Installation
