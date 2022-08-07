@@ -4,9 +4,10 @@ import (
 	"C"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 	"unsafe"
-	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -24,7 +25,7 @@ import (
 // integer representation for this plugin log level
 // 0 - debug
 // 1 - info
-// 2 - error 
+// 2 - error
 var sqsOutLogLevel int
 
 // MessageCounter is used for count the current SQS Batch messages
@@ -39,6 +40,7 @@ type sqsConfig struct {
 	mySQS               *sqs.SQS
 	pluginTagAttribute  string
 	proxyURL            string
+	batchSize           int
 }
 
 //export FLBPluginRegister
@@ -54,12 +56,14 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	queueMessageGroupID := output.FLBPluginConfigKey(plugin, "QueueMessageGroupId")
 	pluginTagAttribute := output.FLBPluginConfigKey(plugin, "PluginTagAttribute")
 	proxyURL := output.FLBPluginConfigKey(plugin, "ProxyUrl")
+	batchSizeString := output.FLBPluginConfigKey(plugin, "BatchSize")
 
 	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
 	writeInfoLog(fmt.Sprintf("QueueRegion is: %s", queueRegion))
 	writeInfoLog(fmt.Sprintf("QueueMessageGroupId is: %s", queueMessageGroupID))
 	writeInfoLog(fmt.Sprintf("pluginTagAttribute is: %s", pluginTagAttribute))
 	writeInfoLog(fmt.Sprintf("ProxyUrl is: %s", proxyURL))
+	writeInfoLog(fmt.Sprintf("BatchSize is: %s", batchSizeString))
 
 	if queueURL == "" {
 		writeErrorLog(errors.New("QueueUrl configuration key is mandatory"))
@@ -76,6 +80,12 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 			writeErrorLog(errors.New("QueueMessageGroupId configuration key is mandatory for FIFO queues: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html"))
 			return output.FLB_ERROR
 		}
+	}
+
+	batchSize, err := strconv.Atoi(batchSizeString)
+	if err != nil || (0 > batchSize && batchSize > 10) {
+		writeErrorLog(errors.New("BatchSize should be integer value between 1 and 10"))
+		return output.FLB_ERROR
 	}
 
 	writeInfoLog("retrieving aws credentials from environment variables")
@@ -126,6 +136,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		queueMessageGroupID: queueMessageGroupID,
 		mySQS:               sqs.New(myAWSSession),
 		pluginTagAttribute:  pluginTagAttribute,
+		batchSize:           batchSize,
 	})
 
 	return output.FLB_OK
@@ -212,7 +223,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 		SqsRecords = append(SqsRecords, sqsRecord)
 
-		if MessageCounter == 10 {
+		if MessageCounter == sqsConf.batchSize {
 			err := sendBatchToSqs(sqsConf, SqsRecords)
 
 			SqsRecords = nil
