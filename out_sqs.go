@@ -1,3 +1,5 @@
+//go:build linux
+
 package main
 
 import (
@@ -233,6 +235,15 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 				writeErrorLog(err)
 				return output.FLB_ERROR
 			}
+		}
+	}
+
+	if SqsRecords != nil {
+		writeInfoLog(fmt.Sprintf("Flushing pending %d records before exiting", len(SqsRecords)))
+		err := sendBatchToSqs(sqsConf, SqsRecords)
+		if err != nil {
+			writeErrorLog(err)
+			return output.FLB_ERROR
 		}
 	}
 
