@@ -113,7 +113,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 			CredentialsChainVerboseErrors: aws.Bool(true),
 		}
 	} else {
-		writeInfoLog("environment variables credentials where found")
+		writeInfoLog("environment variables credentials were found")
 		awsConfig = &aws.Config{
 			Region:                        aws.String(queueRegion),
 			CredentialsChainVerboseErrors: aws.Bool(true),
@@ -140,6 +140,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		writeErrorLog(sessionError)
 		return output.FLB_ERROR
 	}
+	writeInfoLog("AWS session created")
 
 	// Set the context to point to any Go variable
 	output.FLBPluginSetContext(plugin, &sqsConfig{
@@ -149,6 +150,8 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		pluginTagAttribute:  pluginTagAttribute,
 		batchSize:           batchSize,
 	})
+
+	writeInfoLog("Fluentbit context created")
 
 	return output.FLB_OK
 }
@@ -248,7 +251,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 	}
 
 	if SqsRecords != nil {
-		writeInfoLog(fmt.Sprintf("Flushing pending %d records before exiting", len(SqsRecords)))
+		writeInfoLog(fmt.Sprintf("Flushing pending %d records", len(SqsRecords)))
 		err := sendBatchToSqs(sqsConf, SqsRecords)
 		if err != nil {
 			writeErrorLog(err)
@@ -261,6 +264,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 //export FLBPluginExit
 func FLBPluginExit() int {
+	writeInfoLog("Exiting plugin now.")
 	return output.FLB_OK
 }
 
