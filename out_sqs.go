@@ -257,6 +257,8 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			writeErrorLog(err)
 			return output.FLB_ERROR
 		}
+		SqsRecords = nil
+		MessageCounter = 0
 	}
 
 	return output.FLB_OK
