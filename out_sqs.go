@@ -37,6 +37,7 @@ var MessageCounter int = 0
 var SqsRecords []*sqs.SendMessageBatchRequestEntry
 
 type sqsConfig struct {
+	endpoint            string
 	queueURL            string
 	queueMessageGroupID string
 	mySQS               *sqs.SQS
@@ -53,6 +54,7 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
+	endpoint := output.FLBPluginConfigKey(plugin, "SQSEndpoint")
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
 	queueRegion := output.FLBPluginConfigKey(plugin, "QueueRegion")
 	queueMessageGroupID := output.FLBPluginConfigKey(plugin, "QueueMessageGroupId")
@@ -60,12 +62,18 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	proxyURL := output.FLBPluginConfigKey(plugin, "ProxyUrl")
 	batchSizeString := output.FLBPluginConfigKey(plugin, "BatchSize")
 
+	writeInfoLog(fmt.Sprintf("SQSEndpoint is: %s", endpoint))
 	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
 	writeInfoLog(fmt.Sprintf("QueueRegion is: %s", queueRegion))
 	writeInfoLog(fmt.Sprintf("QueueMessageGroupId is: %s", queueMessageGroupID))
 	writeInfoLog(fmt.Sprintf("pluginTagAttribute is: %s", pluginTagAttribute))
 	writeInfoLog(fmt.Sprintf("ProxyUrl is: %s", proxyURL))
 	writeInfoLog(fmt.Sprintf("BatchSize is: %s", batchSizeString))
+
+	if endpoint == "" {
+		endpoint = fmt.Sprintf("sqs.%s.amazonaws.com", queueRegion)
+		writeInfoLog(fmt.Sprintf("Using default regional AWS endpoint: %s", endpoint))
+	}
 
 	if queueURL == "" {
 		writeErrorLog(errors.New("QueueUrl configuration key is mandatory"))
@@ -110,6 +118,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 			Region:                        aws.String(queueRegion),
 			CredentialsChainVerboseErrors: aws.Bool(true),
 			Credentials:                   awsCredentials,
+    	Endpoint:                      aws.String(endpoint),
 		}
 	}
 
