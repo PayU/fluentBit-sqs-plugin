@@ -1,3 +1,5 @@
+//go:build linux
+
 package main
 
 import (
@@ -35,43 +37,54 @@ var MessageCounter int = 0
 var SqsRecords []*sqs.SendMessageBatchRequestEntry
 
 type sqsConfig struct {
+	endpoint            string
 	queueURL            string
 	queueMessageGroupID string
 	mySQS               *sqs.SQS
 	pluginTagAttribute  string
 	proxyURL            string
 	batchSize           int
+	flushPendingRecords bool
 }
 
 //export FLBPluginRegister
 func FLBPluginRegister(def unsafe.Pointer) int {
 	setLogLevel()
-	return output.FLBPluginRegister(def, "sqs", "aws sqs output plugin")
+	return output.FLBPluginRegister(def, "sqs", "AWS SQS output plugin")
 }
 
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
+	endpoint := output.FLBPluginConfigKey(plugin, "SQSEndpoint")
 	queueURL := output.FLBPluginConfigKey(plugin, "QueueUrl")
 	queueRegion := output.FLBPluginConfigKey(plugin, "QueueRegion")
 	queueMessageGroupID := output.FLBPluginConfigKey(plugin, "QueueMessageGroupId")
 	pluginTagAttribute := output.FLBPluginConfigKey(plugin, "PluginTagAttribute")
 	proxyURL := output.FLBPluginConfigKey(plugin, "ProxyUrl")
 	batchSizeString := output.FLBPluginConfigKey(plugin, "BatchSize")
+	flushPendingRecordsString := output.FLBPluginConfigKey(plugin, "FlushPendingRecords")
 
+	writeInfoLog(fmt.Sprintf("SQSEndpoint is: %s", endpoint))
 	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
 	writeInfoLog(fmt.Sprintf("QueueRegion is: %s", queueRegion))
 	writeInfoLog(fmt.Sprintf("QueueMessageGroupId is: %s", queueMessageGroupID))
 	writeInfoLog(fmt.Sprintf("pluginTagAttribute is: %s", pluginTagAttribute))
 	writeInfoLog(fmt.Sprintf("ProxyUrl is: %s", proxyURL))
 	writeInfoLog(fmt.Sprintf("BatchSize is: %s", batchSizeString))
+	writeInfoLog(fmt.Sprintf("flushPendingRecords is: %s", flushPendingRecordsString))
+
+	if endpoint == "" {
+		endpoint = fmt.Sprintf("sqs.%s.amazonaws.com", queueRegion)
+		writeInfoLog(fmt.Sprintf("Using default regional AWS endpoint: %s", endpoint))
+	}
 
 	if queueURL == "" {
-		writeErrorLog(errors.New("QueueUrl configuration key is mandatory"))
+		writeErrorLog(errors.New("QueueUrl configuration key is mandatory."))
 		return output.FLB_ERROR
 	}
 
 	if queueRegion == "" {
-		writeErrorLog(errors.New("QueueRegion configuration key is mandatory"))
+		writeErrorLog(errors.New("QueueRegion configuration key is mandatory."))
 		return output.FLB_ERROR
 	}
 
@@ -84,11 +97,21 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 
 	batchSize, err := strconv.Atoi(batchSizeString)
 	if err != nil || (0 > batchSize && batchSize > 10) {
-		writeErrorLog(errors.New("BatchSize should be integer value between 1 and 10"))
+		writeErrorLog(errors.New("BatchSize should be integer value between 1 and 10."))
 		return output.FLB_ERROR
 	}
 
-	writeInfoLog("retrieving aws credentials from environment variables")
+	if flushPendingRecordsString == "" {
+			writeInfoLog("Flushing pending records by default.")
+			flushPendingRecordsString = "true"
+	}
+	flushPendingRecords, err := strconv.ParseBool(flushPendingRecordsString)
+	if err != nil {
+		writeErrorLog(errors.New(fmt.Sprintf("Cannot set flushPendingRecords as boolean; got %s", flushPendingRecordsString)))
+		return output.FLB_ERROR
+	}
+
+	writeInfoLog("Retrieving AWS credentials from environment variables...")
 	awsCredentials := credentials.NewEnvCredentials()
 	var myAWSSession *session.Session
 	var sessionError error
@@ -97,23 +120,24 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	// Retrieve the credentials value
 	_, credError := awsCredentials.Get()
 	if credError != nil {
-		writeInfoLog("unable to find aws credentials from environment variables..using credentials chain")
+		writeInfoLog("Unable to find AWS credentials from environment variables... Trying credentials chain")
 		awsConfig = &aws.Config{
 			Region:                        aws.String(queueRegion),
 			CredentialsChainVerboseErrors: aws.Bool(true),
 		}
 	} else {
-		writeInfoLog("environment variables credentials where found")
+		writeInfoLog("AWS credentials found in environment")
 		awsConfig = &aws.Config{
 			Region:                        aws.String(queueRegion),
 			CredentialsChainVerboseErrors: aws.Bool(true),
 			Credentials:                   awsCredentials,
+    	Endpoint:                      aws.String(endpoint),
 		}
 	}
 
 	// if proxy
 	if proxyURL != "" {
-		writeInfoLog("set http client struct on aws configuration since proxy url has been found")
+		writeInfoLog("Configuring AWS HTTP client using the provided proxy URL...")
 		awsConfig.HTTPClient = &http.Client{
 			Transport: &http.Transport{
 				Proxy: func(*http.Request) (*url.URL, error) {
@@ -129,6 +153,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		writeErrorLog(sessionError)
 		return output.FLB_ERROR
 	}
+	writeInfoLog("AWS session created.")
 
 	// Set the context to point to any Go variable
 	output.FLBPluginSetContext(plugin, &sqsConfig{
@@ -137,7 +162,10 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		mySQS:               sqs.New(myAWSSession),
 		pluginTagAttribute:  pluginTagAttribute,
 		batchSize:           batchSize,
+		flushPendingRecords: flushPendingRecords,
 	})
+
+	writeInfoLog("Fluentbit context populated.")
 
 	return output.FLB_OK
 }
@@ -149,11 +177,14 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 	var record map[interface{}]interface{}
 	var sqsRecord *sqs.SendMessageBatchRequestEntry
 
+
+	writeDebugLog("===== Entering FLBPluginFlushCtx() =====")
+
 	// Type assert context back into the original type for the Go variable
 	sqsConf, ok := output.FLBPluginGetContext(ctx).(*sqsConfig)
 
 	if !ok {
-		writeErrorLog(errors.New("Unexpected error during get plugin context in flush function"))
+		writeErrorLog(errors.New("Unexpected error from FLBPluginGetContext()."))
 		return output.FLB_ERROR
 	}
 
@@ -168,10 +199,10 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			break
 		}
 
-		writeDebugLog(fmt.Sprintf("got new record from input. record length is: %d", len(record)))
+		writeDebugLog(fmt.Sprintf("Got new record from input (length : %d)", len(record)))
 
 		if len(record) == 0 {
-			writeInfoLog("got empty record from input. skipping it")
+			writeInfoLog("Got empty record from input. Skipping it.")
 			continue
 		}
 
@@ -183,12 +214,12 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		case uint64:
 			timeStamp = time.Unix(int64(t), 0)
 		default:
-			writeInfoLog("given time is not in a known format, defaulting to now")
+			writeInfoLog("The record time format is unknown, defaulting to now")
 			timeStamp = time.Now()
 		}
 
 		tagStr := C.GoString(tag)
-		recordString, err := createRecordString(timeStamp, tagStr, record)
+		recordString, err := createRecordString(timeStamp, record)
 
 		if err != nil {
 			writeErrorLog(err)
@@ -200,8 +231,8 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 		MessageCounter++
 
-		writeDebugLog(fmt.Sprintf("record string: %s", recordString))
-		writeDebugLog(fmt.Sprintf("message counter: %d", MessageCounter))
+		writeDebugLog(fmt.Sprintf("Record string: %s", recordString))
+		writeDebugLog(fmt.Sprintf("Message counter: %d", MessageCounter))
 
 		sqsRecord = &sqs.SendMessageBatchRequestEntry{
 			Id:          aws.String(fmt.Sprintf("MessageNumber-%d", MessageCounter)),
@@ -224,23 +255,36 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		SqsRecords = append(SqsRecords, sqsRecord)
 
 		if MessageCounter == sqsConf.batchSize {
+			writeDebugLog(fmt.Sprintf("Sending %d records in a SQS message batch...", len(SqsRecords)))
 			err := sendBatchToSqs(sqsConf, SqsRecords)
-
-			SqsRecords = nil
-			MessageCounter = 0
-
 			if err != nil {
 				writeErrorLog(err)
 				return output.FLB_ERROR
 			}
+			SqsRecords = nil
+			MessageCounter = 0
 		}
 	}
+
+	if SqsRecords != nil && sqsConf.flushPendingRecords {
+		writeDebugLog(fmt.Sprintf("Flushing pending %d records", len(SqsRecords)))
+		err := sendBatchToSqs(sqsConf, SqsRecords)
+		if err != nil {
+			writeErrorLog(err)
+			return output.FLB_ERROR
+		}
+		SqsRecords = nil
+		MessageCounter = 0
+	}
+
+	writeDebugLog("===== Exiting FLBPluginFlushCtx() =====")
 
 	return output.FLB_OK
 }
 
 //export FLBPluginExit
 func FLBPluginExit() int {
+	writeInfoLog("Exiting plugin now.")
 	return output.FLB_OK
 }
 
@@ -253,6 +297,7 @@ func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchReques
 	output, err := sqsConf.mySQS.SendMessageBatch(&sqsBatch)
 
 	if err != nil {
+		writeErrorLog(fmt.Errorf("Failed sending SQS message batch: %v", err))
 		return err
 	}
 
@@ -263,7 +308,7 @@ func sendBatchToSqs(sqsConf *sqsConfig, sqsRecords []*sqs.SendMessageBatchReques
 	return nil
 }
 
-func createRecordString(timestamp time.Time, tag string, record map[interface{}]interface{}) (string, error) {
+func createRecordString(timestamp time.Time, record map[interface{}]interface{}) (string, error) {
 	m := make(map[string]interface{})
 	// convert timestamp to RFC3339Nano
 	m["@timestamp"] = timestamp.UTC().Format(time.RFC3339Nano)
@@ -278,7 +323,7 @@ func createRecordString(timestamp time.Time, tag string, record map[interface{}]
 	}
 	js, err := json.Marshal(m)
 	if err != nil {
-		writeErrorLog(fmt.Errorf("error creating message for sqs. tag: %s. error: %v", tag, err))
+		writeErrorLog(fmt.Errorf("Failed creating SQS message content: %v", err))
 		return "", err
 	}
 
