@@ -4,14 +4,16 @@ FluntBit custom output plugin which allows sending messages to AWS-SQS.
 
 ## Configuration Parameters
 
-| Configuration Key Name | Description                                              | Mandatory |
-| ---------------------- | -------------------------------------------------------- | --------- |
-| QueueUrl               | the queue url in your aws account                        | yes       |
-| QueueRegion            | the queue region in your aws account                     | yes       |
-| PluginTagAttribute     | attribute name of the message tag                        | no        |
-| QueueMessageGroupId    | the group id required for fifo queues                    | fifo-only |
-| ProxyUrl               | the proxy address between fluentbit and sqs (if exists)  | no        |
-| BatchSize              | set amount of messages to be sent in a batch request     | yes       |
+| Configuration Key Name | Description                                                   | Mandatory |
+| ---------------------- | ------------------------------------------------------------- | --------- |
+| QueueUrl               | the queue url in your aws account                             | yes       |
+| QueueRegion            | the queue region in your aws account                          | yes       |
+| SQSEndpoint            | the SQS endpoint to connect to to configure AWS client        | no        |
+| PluginTagAttribute     | attribute name of the message tag                             | no        |
+| QueueMessageGroupId    | the group id required for fifo queues                         | fifo-only |
+| ProxyUrl               | the proxy address between fluentbit and sqs (if exists)       | no        |
+| BatchSize              | set amount of messages to be sent in a batch request          | yes       |
+| FlushPendingRecords    | if true, pending records will be sent following `Flush` value | no        |
 
 ```conf
 [SERVICE]
@@ -65,7 +67,7 @@ ENTRYPOINT ["/fluent-bit/bin/fluent-bit"]
 CMD ["-c", "/fluent-bit/etc/some_configuration.conf", "-e", "/fluent-bit/bin/fluentBit-sqs-plugin.so"]
 ```
 
-More information about the usage and installation of golang plugins can be found here: https://docs.fluentbit.io/manual/development/golang_plugins 
+More information about the usage and installation of golang plugins can be found here: https://docs.fluentbit.io/manual/development/golang-output-plugins
 
 ## Special Notes
 
