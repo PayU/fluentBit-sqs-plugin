@@ -44,6 +44,7 @@ type sqsConfig struct {
 	pluginTagAttribute  string
 	proxyURL            string
 	batchSize           int
+	flushPendingRecords bool
 }
 
 //export FLBPluginRegister
@@ -61,6 +62,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	pluginTagAttribute := output.FLBPluginConfigKey(plugin, "PluginTagAttribute")
 	proxyURL := output.FLBPluginConfigKey(plugin, "ProxyUrl")
 	batchSizeString := output.FLBPluginConfigKey(plugin, "BatchSize")
+	flushPendingRecordsString := output.FLBPluginConfigKey(plugin, "FlushPendingRecords")
 
 	writeInfoLog(fmt.Sprintf("SQSEndpoint is: %s", endpoint))
 	writeInfoLog(fmt.Sprintf("QueueUrl is: %s", queueURL))
@@ -69,6 +71,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	writeInfoLog(fmt.Sprintf("pluginTagAttribute is: %s", pluginTagAttribute))
 	writeInfoLog(fmt.Sprintf("ProxyUrl is: %s", proxyURL))
 	writeInfoLog(fmt.Sprintf("BatchSize is: %s", batchSizeString))
+	writeInfoLog(fmt.Sprintf("flushPendingRecords is: %s", flushPendingRecordsString))
 
 	if endpoint == "" {
 		endpoint = fmt.Sprintf("sqs.%s.amazonaws.com", queueRegion)
@@ -95,6 +98,16 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 	batchSize, err := strconv.Atoi(batchSizeString)
 	if err != nil || (0 > batchSize && batchSize > 10) {
 		writeErrorLog(errors.New("BatchSize should be integer value between 1 and 10."))
+		return output.FLB_ERROR
+	}
+
+	if flushPendingRecordsString == "" {
+			writeInfoLog("Flushing pending records by default.")
+			flushPendingRecordsString = "true"
+	}
+	flushPendingRecords, err := strconv.ParseBool(flushPendingRecordsString)
+	if err != nil {
+		writeErrorLog(errors.New(fmt.Sprintf("Cannot set flushPendingRecords as boolean; got %s", flushPendingRecordsString)))
 		return output.FLB_ERROR
 	}
 
@@ -149,6 +162,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		mySQS:               sqs.New(myAWSSession),
 		pluginTagAttribute:  pluginTagAttribute,
 		batchSize:           batchSize,
+		flushPendingRecords: flushPendingRecords,
 	})
 
 	writeInfoLog("Fluentbit context populated.")
@@ -252,7 +266,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		}
 	}
 
-	if SqsRecords != nil {
+	if SqsRecords != nil && sqsConf.flushPendingRecords {
 		writeDebugLog(fmt.Sprintf("Flushing pending %d records", len(SqsRecords)))
 		err := sendBatchToSqs(sqsConf, SqsRecords)
 		if err != nil {
